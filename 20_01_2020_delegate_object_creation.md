@@ -5,7 +5,7 @@ We use doorkeeper and they already have a configuration option for that. It work
 
 Yet when trying to create some requests spec's and using my access_token factory the refresh_token field was always `nil`
 
-I knew from playing around with the token value that the token is [generated via rails hook]() and I noticed that the was also the case for the refresh_token. 
+I knew from playing around with the token value that the token is [generated via rails hook](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/orm/active_record/access_token.rb#L19) and I noticed that the was also the case for the refresh_token. 
 Yet there was more addition to it. On the refresh_token there was a `if` condition which determent whether my refresh_token will be generated or not.
 
 After hitting a deadend by myself I ask a colleague for help.
@@ -18,11 +18,11 @@ I found out that the access_token is generated the following way
 1. [Hit the controller from the engine](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L7)
 2. [Inside the controller try to authorize the request](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93)
 3. [In order to authorize the request find out which strategy `grant_type` was used](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L87)
-4. [Meta programming to create the correct strategy class on the fly](https://github.com/doorkeeper-gem/doorkeeper/blob/23e9c0316a24c28819f8b194a113fb7bf5b935ba/lib/doorkeeper/server.rb#L16)
+4. [Meta programming to create the correct strategy class on the fly](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/server.rb#L16)
 5. [call `authorize` to check if with the the token can be issued](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93)
-6. [This method get delegated](https://github.com/doorkeeper-gem/doorkeeper/blob/ad7e17bbf0696e2516a433e06b346d9468386f47/lib/doorkeeper/request/strategy.rb#L8)
-7. [The target method of the delegation than creates create's a class](https://github.com/doorkeeper-gem/doorkeeper/blob/ad7e17bbf0696e2516a433e06b346d9468386f47/lib/doorkeeper/request/authorization_code.rb#L8)
-8. [This class is a child class in which the parent has original method defined](https://github.com/doorkeeper-gem/doorkeeper/blob/ad7e17bbf0696e2516a433e06b346d9468386f47/lib/doorkeeper/oauth/base_request.rb#L10)
+6. [This method get delegated](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/strategy.rb#L8)
+7. [The target method of the delegation than creates create's a class](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/authorization_code.rb#L8)
+8. [This class is a child class in which the parent has original method defined](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/oauth/base_request.rb#L10)
 
 Now some more thing happen in which I didn't look into anymore
 As this example is very complex I created a simple example which does the same thing.
