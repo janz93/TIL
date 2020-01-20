@@ -56,5 +56,5 @@ this is a cool method
 
 
 ### Credits
-* Kamil Lelonek for [explaining delegation](https://blog.lelonek.me/how-to-delegate-methods-in-ruby-a7a71b077d99)
-* Reid Beels to for adding [this trick](https://github.com/doorkeeper-gem/doorkeeper/commit/6eb9b2d6e9dd3e94e6d8c4e9362a3e085b7e15a4#diff-439bd91f0a870bd3ac57594b186a40c1) to the doorkeeper gem
+* [Kamil Lelonek](https://twitter.com/kamillelonek) for [explaining delegation](https://blog.lelonek.me/how-to-delegate-methods-in-ruby-a7a71b077d99)
+* [Reid Beels](https://twitter.com/reidab) to for adding [this trick](https://github.com/doorkeeper-gem/doorkeeper/commit/6eb9b2d6e9dd3e94e6d8c4e9362a3e085b7e15a4#diff-439bd91f0a870bd3ac57594b186a40c1) to the doorkeeper gem
