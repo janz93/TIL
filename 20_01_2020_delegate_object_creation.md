@@ -1,30 +1,45 @@
-# Object creation with activesupport delegate
+# Object creation with activesupport `delegate`
 
-Today I was working on adding the possibility to refresh a access_token in our rails app.
-We use doorkeeper and they already have a configuration option for that. It worked perfect when testing against my 0Auth2 client.
+Today I was working on adding the possibility to refresh an access_token tou our rails app.
+We use doorkeeper and they already have a [configuration option](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/generators/doorkeeper/templates/initializer.rb#L152) for that. It worked locally perfect when testing against my 0Auth2 client.
 
-Yet when trying to create some requests spec's and using my access_token factory the refresh_token field was always `nil`
+Yet when trying to create some requests spec's and using my access_token factory the `refresh_token` field was always `nil`
 
-I knew from playing around with the token value that the token is [generated via rails hook](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/orm/active_record/access_token.rb#L19) and I noticed that the was also the case for the refresh_token. 
-Yet there was more addition to it. On the refresh_token there was a `if` condition which determent whether my refresh_token will be generated or not.
+I knew from digging into the [`access_token` generation](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/orm/active_record/access_token.rb#L19) that was done via rails hook. I noticed that the was also the case for the `refresh_token`. 
+Yet there was more addition to it. For the `refresh_token` there was additionally an `if` condition which determent whether my `refresh_token` will be generated or not.
 
-After hitting a deadend by myself I ask a colleague for help.
+```ruby
+before_validation :generate_refresh_token, on: :create, if: :use_refresh_token?
+```
 
-We discovered that value for the `if` condition was coming from the outside world and when passing the value also trough our factory the token was created as expected.
 
-In order to understand the root cause for the behavior I dug a bit deeper into the doorkeeper gem.
+After a while I just could not figure out why this condition was always failing in my spec. So I ask a colleague for help.
 
-I found out that the access_token is generated the following way
-1. [Hit the controller from the engine](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L7)
-2. [Inside the controller try to authorize the request](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93)
-3. [In order to authorize the request find out which strategy `grant_type` was used](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L87)
-4. [Meta programming to create the correct strategy class on the fly](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/server.rb#L16)
-5. [call `authorize` to check if with the the token can be issued](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93)
-6. [This method get delegated](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/strategy.rb#L8)
-7. [The target method of the delegation than creates create's a class](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/authorization_code.rb#L8)
-8. [This class is a child class in which the parent has original method defined](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/oauth/base_request.rb#L10)
+We discovered that value `@use_refresh_token` for the condition was coming from the outside world.
+```ruby
+def use_refresh_token?
+  @use_refresh_token ||= false
+  !!@use_refresh_token
+end
+```
 
-Now some more thing happen in which I didn't look into anymore
+When also passing the value from our factory the token `refresh_token` was created as expected.
+
+
+
+In order to understand the root cause for the behavior I took a deeper into the doorkeeper gem.
+
+I found out that the an access_token is generated the following way:
+1. [Hit the controller](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L7) from the engine
+2. Inside the controller [try to authorize the request](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93)
+3. In order to authorize the request [find out which strategy `grant_type`](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L87)  is used
+4. Now some meta programming to [create the correct strategy class](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/server.rb#L16) on the fly
+5. [call `authorize`](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/app/controllers/doorkeeper/tokens_controller.rb#L93) to check if the token can be issued
+6. This `authorize` method [gets delegated](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/strategy.rb#L8)
+7. [The target method of the delegation](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/request/authorization_code.rb#L8) than creates create's a class
+8. This class is a [child class](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/oauth/authorization_code_request.rb#L5) in which the [parent class has original method defined](https://github.com/doorkeeper-gem/doorkeeper/blob/v5.2.3/lib/doorkeeper/oauth/base_request.rb#L10)
+
+Now some more things happen in which I didn't look into anymore
 As this example is very complex I created a simple example which does the same thing.
 
 ```ruby
